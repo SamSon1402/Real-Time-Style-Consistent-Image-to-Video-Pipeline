@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flim.ai - Image-to-Video Pipeline Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #ec4899;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #09090b;
+            --bg-card: #18181b;
+            --bg-elevated: #27272a;
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --border: #3f3f46;
+            --flim-gradient: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--flim-gradient);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .logo-text {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: var(--flim-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-subtitle {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-badges {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .badge.live {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .badge.live::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: var(--flim-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1200px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body { padding: 1.5rem; }
+
+        /* Image Selection */
+        .image-selector {
+            margin-bottom: 1.5rem;
+        }
+
+        .selector-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+        }
+
+        .image-item {
+            aspect-ratio: 16/9;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-item:hover {
+            transform: scale(1.02);
+            border-color: var(--border);
+        }
+
+        .image-item.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+
+        .image-item.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .image-item .order-badge {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: var(--primary);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .image-meta {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 1.5rem 0.5rem 0.5rem;
+            font-size: 0.65rem;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .image-item:hover .image-meta {
+            opacity: 1;
+        }
+
+        /* Selected Images Preview */
+        .selected-preview {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .preview-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .preview-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .preview-strip {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            min-height: 60px;
+        }
+
+        .preview-thumb {
+            width: 80px;
+            height: 50px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 2px solid var(--primary);
+        }
+
+        .preview-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-arrow {
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .preview-placeholder {
+            width: 80px;
+            height: 50px;
+            border-radius: 6px;
+            border: 2px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        /* Style Controls */
+        .style-controls {
+            margin-bottom: 1.5rem;
+        }
+
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        .style-option {
+            background: var(--bg-elevated);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 1rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .style-option:hover {
+            background: var(--bg-dark);
+        }
+
+        .style-option.selected {
+            border-color: var(--secondary);
+            background: rgba(236, 72, 153, 0.1);
+        }
+
+        .style-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .style-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .style-desc {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Parameters */
+        .param-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .param-group {
+            margin-bottom: 1rem;
+        }
+
+        .param-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .param-name {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .param-value {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .param-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--bg-dark);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .param-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+
+        /* Output Panel */
+        .output-section {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .output-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .output-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .output-video {
+            aspect-ratio: 16/9;
+            background: var(--bg-dark);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-placeholder {
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .video-placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .video-canvas {
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        .video-canvas.active {
+            display: block;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .output-video:hover .video-controls {
+            opacity: 1;
+        }
+
+        .play-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            font-size: 0.75rem;
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Processing Animation */
+        .processing-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(9, 9, 11, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .processing-overlay.active {
+            display: flex;
+        }
+
+        .processing-animation {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .processing-ring {
+            position: absolute;
+            inset: 0;
+            border: 4px solid var(--bg-elevated);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .processing-ring:nth-child(2) {
+            inset: 15px;
+            border-top-color: var(--secondary);
+            animation-direction: reverse;
+            animation-duration: 0.8s;
+        }
+
+        .processing-ring:nth-child(3) {
+            inset: 30px;
+            border-top-color: var(--accent);
+            animation-duration: 0.6s;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .processing-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .processing-stage {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .processing-progress {
+            width: 200px;
+            height: 6px;
+            background: var(--bg-elevated);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .processing-bar {
+            height: 100%;
+            background: var(--flim-gradient);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--flim-gradient);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            margin-top: 1rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Right Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .metrics-card {
+            background: var(--bg-elevated);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .metrics-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .metrics-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .metrics-change {
+            font-size: 0.75rem;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Consistency Score */
+        .consistency-meter {
+            margin-top: 1rem;
+        }
+
+        .consistency-bar {
+            height: 8px;
+            background: var(--bg-dark);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .consistency-fill {
+            height: 100%;
+            background: var(--flim-gradient);
+            transition: width 0.5s;
+        }
+
+        .consistency-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* History */
+        .history-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .history-thumb {
+            width: 60px;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .history-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .history-info {
+            flex: 1;
+        }
+
+        .history-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .history-meta {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* Export Options */
+        .export-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .export-btn {
+            padding: 0.6rem;
+            border-radius: 8px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-icon {
+            font-size: 1.5rem;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .toast-message {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🎬</div>
+                <div>
+                    <div class="logo-text">Flim.ai</div>
+                    <div class="logo-subtitle">Image-to-Video Pipeline</div>
+                </div>
+            </div>
+            <div class="header-badges">
+                <span class="badge live">Demo Live</span>
+                <span class="badge">SVD Fine-tuned</span>
+                <span class="badge">LoRA Adapters</span>
+                <span class="badge">4K Output</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="hero">
+            <h1>🎥 Cinematic Video Generation</h1>
+            <p>Transform still frames into fluid, style-consistent videos using AI trained on Flim's curated database</p>
+        </div>
+
+        <div class="workspace">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">🖼️ Select Reference Frames</h3>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Choose 1-3 images</span>
+                </div>
+                <div class="card-body">
+                    <div class="image-selector">
+                        <div class="selector-label">
+                            <span>📁 Flim Database — Cinematic Stills</span>
+                        </div>
+                        <div class="image-grid" id="imageGrid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <div class="selected-preview">
+                        <div class="preview-header">
+                            <span class="preview-title">Selected Frames</span>
+                            <span class="preview-count" id="selectionCount">0/3 selected</span>
+                        </div>
+                        <div class="preview-strip" id="previewStrip">
+                            <div class="preview-placeholder">Frame 1</div>
+                            <span class="preview-arrow">→</span>
+                            <div class="preview-placeholder">Frame 2</div>
+                            <span class="preview-arrow">→</span>
+                            <div class="preview-placeholder">Frame 3</div>
+                        </div>
+                    </div>
+
+                    <div class="style-controls">
+                        <div class="selector-label">
+                            <span>🎨 Motion Style</span>
+                        </div>
+                        <div class="style-grid">
+                            <div class="style-option selected" onclick="selectStyle('smooth')">
+                                <div class="style-icon">🌊</div>
+                                <div class="style-name">Smooth</div>
+                                <div class="style-desc">Fluid transitions</div>
+                            </div>
+                            <div class="style-option" onclick="selectStyle('dynamic')">
+                                <div class="style-icon">⚡</div>
+                                <div class="style-name">Dynamic</div>
+                                <div class="style-desc">Energetic motion</div>
+                            </div>
+                            <div class="style-option" onclick="selectStyle('cinematic')">
+                                <div class="style-icon">🎬</div>
+                                <div class="style-name">Cinematic</div>
+                                <div class="style-desc">Film-like pans</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="param-section">
+                        <div class="selector-label">
+                            <span>⚙️ Generation Parameters</span>
+                        </div>
+                        <div class="param-group">
+                            <div class="param-label">
+                                <span class="param-name">Duration</span>
+                                <span class="param-value" id="durationValue">4 seconds</span>
+                            </div>
+                            <input type="range" class="param-slider" id="durationSlider" min="2" max="8" step="1" value="4" oninput="updateDuration()">
+                        </div>
+                        <div class="param-group">
+                            <div class="param-label">
+                                <span class="param-name">Style Strength</span>
+                                <span class="param-value" id="strengthValue">75%</span>
+                            </div>
+                            <input type="range" class="param-slider" id="strengthSlider" min="0" max="100" step="5" value="75" oninput="updateStrength()">
+                        </div>
+                        <div class="param-group">
+                            <div class="param-label">
+                                <span class="param-name">Motion Intensity</span>
+                                <span class="param-value" id="motionValue">Medium</span>
+                            </div>
+                            <input type="range" class="param-slider" id="motionSlider" min="1" max="3" step="1" value="2" oninput="updateMotion()">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="generateBtn" onclick="generateVideo()" disabled>
+                        <span>✨</span> Generate Video
+                    </button>
+
+                    <div class="output-section" style="margin-top: 1.5rem;">
+                        <div class="output-header">
+                            <span class="output-title">🎞️ Generated Output</span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted);" id="outputStatus">Waiting for generation...</span>
+                        </div>
+                        <div class="output-video" id="outputVideo">
+                            <div class="video-placeholder" id="placeholder">
+                                <div class="video-placeholder-icon">🎬</div>
+                                <div>Select frames and generate</div>
+                            </div>
+                            <canvas class="video-canvas" id="videoCanvas" width="1280" height="720"></canvas>
+                            <div class="processing-overlay" id="processingOverlay">
+                                <div class="processing-animation">
+                                    <div class="processing-ring"></div>
+                                    <div class="processing-ring"></div>
+                                    <div class="processing-ring"></div>
+                                </div>
+                                <div class="processing-text">Generating Video...</div>
+                                <div class="processing-stage" id="processingStage">Extracting style features...</div>
+                                <div class="processing-progress">
+                                    <div class="processing-bar" id="processingBar"></div>
+                                </div>
+                            </div>
+                            <div class="video-controls" id="videoControls" style="display: none;">
+                                <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <span class="time-display" id="timeDisplay">0:00 / 0:04</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">📊 Generation Metrics</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="metrics-card">
+                            <div class="metrics-title">Style Consistency</div>
+                            <div class="metrics-value" id="consistencyScore">—</div>
+                            <div class="consistency-meter">
+                                <div class="consistency-bar">
+                                    <div class="consistency-fill" id="consistencyBar" style="width: 0%"></div>
+                                </div>
+                                <div class="consistency-labels">
+                                    <span>Low</span>
+                                    <span>High</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stats-panel">
+                            <div class="stat-row">
+                                <span class="stat-label">Processing Time</span>
+                                <span class="stat-value" id="procTime">—</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Frames Generated</span>
+                                <span class="stat-value" id="frameCount">—</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Resolution</span>
+                                <span class="stat-value" id="resolution">1280×720</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">LoRA Model</span>
+                                <span class="stat-value" id="loraModel">—</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">GPU Memory</span>
+                                <span class="stat-value" id="gpuMemory">—</span>
+                            </div>
+                        </div>
+
+                        <div class="export-options">
+                            <button class="export-btn" onclick="exportVideo('mp4')">📥 MP4</button>
+                            <button class="export-btn" onclick="exportVideo('gif')">🎞️ GIF</button>
+                            <button class="export-btn" onclick="exportVideo('webm')">🌐 WebM</button>
+                            <button class="export-btn" onclick="saveToBoard()">📋 To Board</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">🕐 Recent Generations</h3>
+                    </div>
+                    <div class="card-body" id="historyPanel">
+                        <div style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem;">
+                            No generations yet
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">💡 Tips</h3>
+                    </div>
+                    <div class="card-body">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+                            <p style="margin-bottom: 0.75rem;">✨ <strong>Best results:</strong> Select frames with similar lighting and color palette</p>
+                            <p style="margin-bottom: 0.75rem;">🎬 <strong>Cinematic mode:</strong> Works best with wide shots</p>
+                            <p>⚡ <strong>Speed tip:</strong> Lower duration for faster iteration</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast">
+        <span class="toast-icon">✅</span>
+        <div class="toast-content">
+            <div class="toast-title" id="toastTitle">Success!</div>
+            <div class="toast-message" id="toastMessage">Video generated successfully</div>
+        </div>
+    </div>
+
+    <script>
+        // Sample images from Unsplash (cinematic stills)
+        const sampleImages = [
+            { id: 1, url: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400', title: 'Cinema Hall', film: 'Atmospheric', style: 'Moody' },
+            { id: 2, url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400', title: 'Night Drive', film: 'Blade Runner', style: 'Neon' },
+            { id: 3, url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400', title: 'Film Noir', film: 'Classic', style: 'B&W' },
+            { id: 4, url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400', title: 'Studio Light', film: 'Portrait', style: 'Warm' },
+            { id: 5, url: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=400', title: 'Empty Theater', film: 'Drama', style: 'Red' },
+            { id: 6, url: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=400', title: 'Urban Night', film: 'Thriller', style: 'Blue' },
+            { id: 7, url: 'https://images.unsplash.com/photo-1524712245354-2c4e5e7121c0?w=400', title: 'Silhouette', film: 'Mystery', style: 'Shadow' },
+            { id: 8, url: 'https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=400', title: 'Movie Scene', film: 'Action', style: 'Dynamic' }
+        ];
+
+        let selectedImages = [];
+        let selectedStyle = 'smooth';
+        let isPlaying = false;
+        let animationFrame = null;
+        let generationHistory = [];
+
+        // Initialize
+        function init() {
+            renderImageGrid();
+        }
+
+        function renderImageGrid() {
+            const grid = document.getElementById('imageGrid');
+            grid.innerHTML = sampleImages.map(img => `
+                <div class="image-item" onclick="toggleImage(${img.id})" id="img-${img.id}">
+                    <img src="${img.url}" alt="${img.title}">
+                    <div class="image-meta">${img.title} · ${img.style}</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleImage(id) {
+            const index = selectedImages.findIndex(img => img.id === id);
+            const element = document.getElementById(`img-${id}`);
+            const image = sampleImages.find(img => img.id === id);
+
+            if (index > -1) {
+                selectedImages.splice(index, 1);
+                element.classList.remove('selected');
+                const orderBadge = element.querySelector('.order-badge');
+                if (orderBadge) orderBadge.remove();
+            } else if (selectedImages.length < 3) {
+                selectedImages.push(image);
+                element.classList.add('selected');
+                const badge = document.createElement('div');
+                badge.className = 'order-badge';
+                badge.textContent = selectedImages.length;
+                element.appendChild(badge);
+            }
+
+            updatePreviewStrip();
+            updateGenerateButton();
+        }
+
+        function updatePreviewStrip() {
+            const strip = document.getElementById('previewStrip');
+            document.getElementById('selectionCount').textContent = `${selectedImages.length}/3 selected`;
+
+            let html = '';
+            for (let i = 0; i < 3; i++) {
+                if (selectedImages[i]) {
+                    html += `<div class="preview-thumb"><img src="${selectedImages[i].url}" alt=""></div>`;
+                } else {
+                    html += `<div class="preview-placeholder">Frame ${i + 1}</div>`;
+                }
+                if (i < 2) html += '<span class="preview-arrow">→</span>';
+            }
+            strip.innerHTML = html;
+        }
+
+        function updateGenerateButton() {
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = selectedImages.length === 0;
+        }
+
+        function selectStyle(style) {
+            selectedStyle = style;
+            document.querySelectorAll('.style-option').forEach(opt => opt.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+        }
+
+        function updateDuration() {
+            const val = document.getElementById('durationSlider').value;
+            document.getElementById('durationValue').textContent = val + ' seconds';
+        }
+
+        function updateStrength() {
+            const val = document.getElementById('strengthSlider').value;
+            document.getElementById('strengthValue').textContent = val + '%';
+        }
+
+        function updateMotion() {
+            const val = document.getElementById('motionSlider').value;
+            const labels = ['Low', 'Medium', 'High'];
+            document.getElementById('motionValue').textContent = labels[val - 1];
+        }
+
+        function generateVideo() {
+            if (selectedImages.length === 0) return;
+
+            const overlay = document.getElementById('processingOverlay');
+            const bar = document.getElementById('processingBar');
+            const stage = document.getElementById('processingStage');
+            const placeholder = document.getElementById('placeholder');
+
+            overlay.classList.add('active');
+            placeholder.style.display = 'none';
+
+            const stages = [
+                'Extracting style features...',
+                'Loading LoRA adapters...',
+                'Generating motion vectors...',
+                'Running SVD inference...',
+                'Applying temporal smoothing...',
+                'Encoding final output...'
+            ];
+
+            let progress = 0;
+            let stageIndex = 0;
+
+            const interval = setInterval(() => {
+                progress += Math.random() * 8 + 2;
+                if (progress > 100) progress = 100;
+                bar.style.width = progress + '%';
+
+                const newStage = Math.floor((progress / 100) * stages.length);
+                if (newStage !== stageIndex && newStage < stages.length) {
+                    stageIndex = newStage;
+                    stage.textContent = stages[stageIndex];
+                }
+
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                        showGeneratedVideo();
+                    }, 500);
+                }
+            }, 100);
+        }
+
+        function showGeneratedVideo() {
+            const canvas = document.getElementById('videoCanvas');
+            const ctx = canvas.getContext('2d');
+            const controls = document.getElementById('videoControls');
+            const duration = parseInt(document.getElementById('durationSlider').value);
+
+            canvas.classList.add('active');
+            controls.style.display = 'flex';
+            document.getElementById('outputStatus').textContent = 'Generation complete!';
+
+            // Update metrics
+            const consistency = Math.floor(Math.random() * 15) + 85;
+            document.getElementById('consistencyScore').textContent = consistency + '%';
+            document.getElementById('consistencyBar').style.width = consistency + '%';
+            document.getElementById('procTime').textContent = (Math.random() * 3 + 2).toFixed(1) + 's';
+            document.getElementById('frameCount').textContent = (duration * 24) + ' frames';
+            document.getElementById('loraModel').textContent = selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1) + '_v2.1';
+            document.getElementById('gpuMemory').textContent = '8.2 GB';
+            document.getElementById('timeDisplay').textContent = `0:00 / 0:0${duration}`;
+
+            // Animated video simulation
+            let frame = 0;
+            const totalFrames = duration * 24;
+            const images = selectedImages.map(img => {
+                const i = new Image();
+                i.crossOrigin = 'anonymous';
+                i.src = img.url;
+                return i;
+            });
+
+            function renderFrame() {
+                const t = frame / totalFrames;
+                const imgIndex = Math.min(Math.floor(t * images.length), images.length - 1);
+                const localT = (t * images.length) % 1;
+
+                // Draw current image with zoom/pan effect
+                const img = images[imgIndex];
+                if (img.complete) {
+                    const zoom = 1 + Math.sin(t * Math.PI * 2) * 0.05;
+                    const panX = Math.sin(t * Math.PI * 4) * 20;
+                    const panY = Math.cos(t * Math.PI * 4) * 10;
+
+                    ctx.fillStyle = '#09090b';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    ctx.save();
+                    ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
+                    ctx.scale(zoom, zoom);
+                    ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+                    ctx.restore();
+
+                    // Cinematic bars
+                    ctx.fillStyle = '#09090b';
+                    ctx.fillRect(0, 0, canvas.width, 50);
+                    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+                    // Film grain overlay
+                    ctx.globalAlpha = 0.03;
+                    for (let i = 0; i < 1000; i++) {
+                        ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+                        ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
+                    }
+                    ctx.globalAlpha = 1;
+                }
+
+                // Update progress
+                document.getElementById('progressFill').style.width = (t * 100) + '%';
+                const secs = Math.floor(t * duration);
+                document.getElementById('timeDisplay').textContent = `0:0${secs} / 0:0${duration}`;
+
+                frame++;
+                if (frame >= totalFrames) frame = 0;
+
+                if (isPlaying) {
+                    animationFrame = requestAnimationFrame(renderFrame);
+                }
+            }
+
+            // Auto-play
+            isPlaying = true;
+            document.getElementById('playBtn').textContent = '⏸';
+            renderFrame();
+
+            // Add to history
+            addToHistory();
+            showToast('Video Generated!', `${duration}s clip with ${selectedStyle} motion style`);
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            document.getElementById('playBtn').textContent = isPlaying ? '⏸' : '▶';
+            if (isPlaying) {
+                const canvas = document.getElementById('videoCanvas');
+                const ctx = canvas.getContext('2d');
+                // Resume animation
+            }
+        }
+
+        function addToHistory() {
+            const item = {
+                id: Date.now(),
+                thumbnail: selectedImages[0].url,
+                style: selectedStyle,
+                duration: document.getElementById('durationSlider').value,
+                time: new Date().toLocaleTimeString()
+            };
+            generationHistory.unshift(item);
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const panel = document.getElementById('historyPanel');
+            if (generationHistory.length === 0) {
+                panel.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 1rem;">No generations yet</div>';
+                return;
+            }
+
+            panel.innerHTML = generationHistory.slice(0, 3).map(item => `
+                <div class="history-item">
+                    <div class="history-thumb"><img src="${item.thumbnail}" alt=""></div>
+                    <div class="history-info">
+                        <div class="history-name">${item.style} · ${item.duration}s</div>
+                        <div class="history-meta">${item.time}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportVideo(format) {
+            showToast('Exporting...', `Preparing ${format.toUpperCase()} download`);
+        }
+
+        function saveToBoard() {
+            showToast('Saved!', 'Video added to your Flim board');
+        }
+
+        function showToast(title, message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
